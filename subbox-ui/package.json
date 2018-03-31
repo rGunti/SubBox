@@ -39,6 +39,7 @@
     "passport": "^0.4.0",
     "passport-youtube-v3": "^2.1.0",
     "popper.js": "^1.14.1",
+    "sequelize": "^4.37.5",
     "typed-rest-client": "^1.0.7"
   },
   "devDependencies": {
