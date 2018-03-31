@@ -59,4 +59,4 @@ typings/
 
 # VS Code
 .vscode/temp.sql
-./*/build/*
+build/
