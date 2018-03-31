@@ -1,0 +1,24 @@
+{
+  "name": "subbox-rest",
+  "version": "1.0.0",
+  "description": "RESTful Backend of SubBox",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rGunti/SubBox.git"
+  },
+  "keywords": [
+    "youtube",
+    "subscription",
+    "subbox"
+  ],
+  "author": "Raphael \"rGunti\" Guntersweiler <raphael@rgunti.ch>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rGunti/SubBox/issues"
+  },
+  "homepage": "https://github.com/rGunti/SubBox#readme"
+}
