@@ -1,0 +1,15 @@
+/* **************************************** *
+ * (C) 2018, Raphael "rGunti" Guntersweiler *
+ * **************************************** */
+
+.nav-menu {
+    background-color: rgb(63, 81, 181);
+    border-right: 1px solid rgb(63, 81, 181);
+}
+.nav-menu .mdl-layout-title,
+.nav-menu .mdl-navigation__link {
+    color: white !important;
+}
+.nav-menu a.mdl-navigation__link:hover {
+    color: black !important;
+}
