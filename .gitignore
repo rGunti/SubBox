@@ -59,4 +59,5 @@ typings/
 
 # VS Code
 .vscode/temp.sql
+.vscode/last.sql
 build/
