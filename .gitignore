@@ -57,6 +57,10 @@ typings/
 # dotenv environment variables file
 .env
 
+# Config
+*/config/*.json
+!*/config/template.json
+
 # VS Code
 .vscode/temp.sql
 .vscode/last.sql

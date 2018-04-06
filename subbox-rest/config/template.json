@@ -1,0 +1,13 @@
+{
+    "youtube": {
+        "credentials": {
+            "clientID": "",
+            "clientSecret": ""
+        },
+        "scope": ["https://www.googleapis.com/auth/youtube.readonly"],
+        "accessType": "offline"
+    },
+    "server": {
+        "port": 3010
+    }
+}

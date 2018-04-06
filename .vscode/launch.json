@@ -18,6 +18,21 @@
             },
             "preLaunchTask": "tsc: build - subbox-ui/tsconfig.json",
             "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch SubBox REST",
+            "program": "${workspaceFolder}/subbox-rest/build/main.js",
+            "cwd": "${workspaceFolder}/subbox-rest",
+            "outFiles": [
+                "${workspaceFolder}/subbox-rest/**/*.js"
+            ],
+            "env": {
+                "NODE_ENV": "dev"
+            },
+            "preLaunchTask": "tsc: build - subbox-rest/tsconfig.json",
+            "console": "integratedTerminal"
         }
     ]
 }
