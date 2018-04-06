@@ -1,18 +1,23 @@
 import { Router, Request, Response, RouterOptions } from "express";
+import { emptyResponse } from "./utils";
 
+/* ---- CLASSES & INTERFACES ---- */
+// TODO
+
+/* ---- PROCESSING FUNCTIONS ---- */
+// TODO
+
+/* ---- ROUTER ---- */
 const router:Router = Router();
 
-router.get('/', (req:Request, res:Response) => {
-    res.json({ okay: true });
-});
-router.post('/', (req:Request, res:Response) => {
-    res.json({ okay: true, postBody: req.body });
-});
-router.put('/', (req:Request, res:Response) => {
-    res.json({ okay: true, putBody: req.body });
-});
-router.delete('/', (req:Request, res:Response) => {
-    res.json({ okay: true, deleted: true });
-});
+/** 
+ * GET _/
+ * Default Route (responds with 204 Empty Response to confirm that this router is loaded and working)
+ * 
+ * Returns:
+ *  HTTP 204 No Content
+ */
+router.get('/', emptyResponse(false));
 
+/* ---- ROUTER EXPORT (END OF FILE) ---- */
 export const TemplateRouter: Router = router;
