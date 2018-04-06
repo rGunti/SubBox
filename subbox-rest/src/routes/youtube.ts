@@ -5,7 +5,8 @@ import { OAuth2Client } from 'google-auth-library';
 import * as google from "googleapis";
 import { AxiosResponse } from "axios";
 import { Schema$SubscriptionListResponse } from "googleapis/build/src/apis/youtube/v3";
-import { YouTubeChannelDTO } from "../dtos/youtube";
+import { YouTubeChannelDTO, YouTubeChannelListSection } from "../dtos/youtube";
+import { DataCollectionResponseDTO } from "../dtos/base";
 
 const router:Router = Router();
 
@@ -61,52 +62,56 @@ const youtubeAuth = (req:YouTubeAuthRequest, res:Response, next:NextFunction) =>
 
 router.get('/', emptyResponse(false));
 
-//function fetchSubscriptionPage(oauthClient:OAuth2Client, nextPageToken:string = null) {
-//    google.google.youtube({
-//        version: 'v3',
-//        auth: oauthClient
-//    }).subscriptions.list({
-//        part: 'snippet',
-//        mine: true,
-//        maxResults: 50,
-//        order: 'alphabetical',
-//        fields: 'etag,eventId,items(snippet(resourceId(channelId,playlistId,videoId),thumbnails,title)),nextPageToken,pageInfo,prevPageToken'
-//    }, (err:Error|null, data:AxiosResponse<Schema$SubscriptionListResponse>) => {
-//        if (err) {
-//            console.log(err.constructor.name, err.name, err.message);
-//            return restError(err, 'ERR_REMOTE_API')(req, res);
-//        }
-//        if (data && data.data) {
-//            return dataResponse(data.data)(req, res);
-//        } else {
-//            return restError(null, 'ERR_EMPTY_RESPONSE')(req, res);
-//        }
-//    });
-//}
+function fetchSubscriptionPage(oauthClient:OAuth2Client, nextPageToken:string = null):Promise<YouTubeChannelListSection> {
+    return new Promise<YouTubeChannelListSection>((resolve, reject) => {
+        process.nextTick(() => {
+            google.google.youtube({
+                version: 'v3',
+                auth: oauthClient
+            }).subscriptions.list({
+                part: 'snippet',
+                pageToken: nextPageToken,
+                mine: true,
+                maxResults: 50,
+                order: 'alphabetical',
+                fields: 'etag,eventId,items(snippet(resourceId(channelId,playlistId,videoId),thumbnails,title)),nextPageToken,pageInfo,prevPageToken'
+            }, (err:Error|null, data:AxiosResponse<Schema$SubscriptionListResponse>) => {
+                if (err) reject(err);
+                resolve(new YouTubeChannelListSection(
+                    data.data.items.map(s => YouTubeChannelDTO.convertFromSubscription(s)),
+                    data.data.nextPageToken
+                ));
+            });
+        });
+    });
+}
+
+function fetchAllSubscriptions(oauthClient:OAuth2Client):Promise<YouTubeChannelDTO[]> {
+    return new Promise<YouTubeChannelDTO[]>(async (resolve, reject) => {
+        const result:YouTubeChannelDTO[] = [];
+        let lastResponse:YouTubeChannelListSection = new YouTubeChannelListSection(null);
+        try {
+            do {
+                lastResponse = await fetchSubscriptionPage(oauthClient, lastResponse.nextPageToken);
+                lastResponse.items.forEach(c => result.push(c));
+            } while (lastResponse.nextPageToken);
+        } catch (err) {
+            reject(err);
+        }
+        resolve(result);
+    });
+}
 
 router.get('/subscriptions', youtubeAuth, nextTick, (req:YouTubeAuthRequest, res:Response) => {
-    google.google.youtube({
-        version: 'v3',
-        auth: req.youtubeCredentials.OAuthClient
-    }).subscriptions.list({
-        part: 'snippet',
-        mine: true,
-        maxResults: 50,
-        order: 'alphabetical',
-        fields: 'etag,eventId,items(snippet(resourceId(channelId,playlistId,videoId),thumbnails,title)),nextPageToken,pageInfo,prevPageToken'
-    }, (err:Error|null, data:AxiosResponse<Schema$SubscriptionListResponse>) => {
-        if (err) {
-            console.log(err.constructor.name, err.name, err.message);
-            return restError(err, 'ERR_REMOTE_API')(req, res);
-        }
-        if (data && data.data) {
+    fetchAllSubscriptions(req.youtubeCredentials.OAuthClient)
+        .then((channels) => {
             return dataResponse(
-                data.data.items.map(s => YouTubeChannelDTO.convertFromSubscription(s))
+                new DataCollectionResponseDTO<YouTubeChannelDTO>(channels)
             )(req, res);
-        } else {
-            return restError(null, 'ERR_EMPTY_RESPONSE')(req, res);
-        }
-    });
+        })
+        .catch((err) => {
+            return restError(err)(req, res);
+        });
 });
 
 export const YouTubeRouter: Router = router;

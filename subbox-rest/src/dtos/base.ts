@@ -18,7 +18,10 @@ export class DataResponseDTO<T> extends EmptyDataResponseDTO {
 export class DataCollectionResponseDTO<T> extends DataResponseDTO<T[]> {
     constructor(collection:T[]) {
         super(collection);
+        this.itemCount = collection.length;
     }
+
+    public readonly itemCount:number;
 }
 
 export class ErrorResponseDTO extends EmptyDataResponseDTO {

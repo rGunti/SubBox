@@ -48,3 +48,15 @@ export class YouTubeChannelDTO {
         return c;
     }
 }
+
+export class ObjectListSection<T> {
+    constructor(items:T[], nextPageToken?:string) {
+        this.items = items;
+        this.nextPageToken = nextPageToken || null;
+    }
+
+    public nextPageToken?:string;
+    public items:T[];
+}
+
+export class YouTubeChannelListSection extends ObjectListSection<YouTubeChannelDTO> { }

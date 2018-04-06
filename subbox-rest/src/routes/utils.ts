@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { DataCollectionResponseDTO } from "../dtos/base";
 
 export function nextTick(req:Request, res:Response, next:NextFunction) {
     process.nextTick(() => next());
@@ -38,11 +39,8 @@ export function emptyResponse(content:boolean = true) {
     };
 };
 
-export function dataResponse(data:any) {
+export function dataResponse(data:DataCollectionResponseDTO<any>) {
     return (req:Request, res:Response) => {
-        res.json({
-            okay: true,
-            data: data
-        });
+        res.json(data);
     };
 };
