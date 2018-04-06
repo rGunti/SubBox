@@ -8,7 +8,7 @@ import { Schema$SubscriptionListResponse } from "googleapis/build/src/apis/youtu
 import { YouTubeChannelDTO, YouTubeChannelListSection } from "../dtos/youtube";
 import { DataCollectionResponseDTO } from "../dtos/base";
 
-const router:Router = Router();
+/* ---- CLASSES & INTERFACES ---- */
 
 /**
  * Construct which contains the Access and Refresh Tokens
@@ -40,17 +40,36 @@ class YouTubeCredentials {
     }
 }
 
+/** Internal Interface to extend express Request with YouTube Credentials */
 interface YouTubeAuthRequest extends Request {
     youtubeCredentials:YouTubeCredentials;
 }
+
+/* ---- PROCESSING FUNCTIONS ---- */
 
 /**
  * Checks if authentication is present.
  * If so, continue.
  * If not, respond with 403 Not Authenticated.
- * @param req 
- * @param res 
- * @param next 
+ * 
+ * This method DOES NOT check for the validity of the given credentials.
+ * It only checks the presence.
+ * 
+ * This function is a request handler that can be used in a router that 
+ * requires YouTube Authentication. It requires the following two query parameters
+ * to be present:
+ * 
+ * {youtubeAuth}
+ * - accessToken: Contains the OAuth Access Token to access account information
+ * - refreshToken: Contains the OAuth Refresh Token to access account information
+ * 
+ * Upon success, a property is added to the Request object that contains the given
+ * credentials and a newly created OAuth2Client (by Google) ready for requests.
+ * You can access this property by using "req.youtubeCredentials".
+ * 
+ * @param req Request (express)
+ * @param res Response (express)
+ * @param next Next Function to execute then successful (express)
  */
 const youtubeAuth = (req:YouTubeAuthRequest, res:Response, next:NextFunction) => {
     if (req.query && req.query.accessToken && req.query.refreshToken) {
@@ -60,8 +79,11 @@ const youtubeAuth = (req:YouTubeAuthRequest, res:Response, next:NextFunction) =>
     return authError(req, res, 'AUTH_YOUTUBE_MISSING');
 };
 
-router.get('/', emptyResponse(false));
-
+/**
+ * Fetches a page of YouTube channels the authenticated user subscribed to
+ * @param oauthClient OAuth Client with User credentials
+ * @param nextPageToken if available, the token to retrieve the next page
+ */
 function fetchSubscriptionPage(oauthClient:OAuth2Client, nextPageToken:string = null):Promise<YouTubeChannelListSection> {
     return new Promise<YouTubeChannelListSection>((resolve, reject) => {
         process.nextTick(() => {
@@ -86,6 +108,10 @@ function fetchSubscriptionPage(oauthClient:OAuth2Client, nextPageToken:string = 
     });
 }
 
+/**
+ * Fetches a list of all YouTube channels a user has subscribed to
+ * @param oauthClient OAuth Client with User credentials
+ */
 function fetchAllSubscriptions(oauthClient:OAuth2Client):Promise<YouTubeChannelDTO[]> {
     return new Promise<YouTubeChannelDTO[]>(async (resolve, reject) => {
         const result:YouTubeChannelDTO[] = [];
@@ -102,6 +128,40 @@ function fetchAllSubscriptions(oauthClient:OAuth2Client):Promise<YouTubeChannelD
     });
 }
 
+/* ---- ROUTER ---- */
+
+const router:Router = Router();
+
+/** 
+ * GET _/
+ * Default Route (responds with 204 Empty Response to confirm that this router is loaded and working)
+ * 
+ * Returns:
+ *  HTTP 204 No Content
+ */
+router.get('/', emptyResponse(false));
+
+/**
+ * GET _/subscriptions
+ * Retrieves a list of channels the authenticated user has subscribed to
+ * 
+ * Parameters (Query):
+ *  -> {youtubeAuth}
+ * 
+ * Returns:
+ *  if successful:
+ *      {
+ *          okay: true                  => true
+ *          data: YouTubeChannelDTO[]   => Array of subscribed YouTube Channels
+ *          itemCount: number           => Number of items present in "data"
+ *      }
+ *  if failed:
+ *      {
+ *          okay: false                 => false
+ *          error: string               => Error Reason Code ("ERR_UNSPECIFIED")
+ *          detail: Error|any           => Error object that was thrown
+ *      }
+ */
 router.get('/subscriptions', youtubeAuth, nextTick, (req:YouTubeAuthRequest, res:Response) => {
     fetchAllSubscriptions(req.youtubeCredentials.OAuthClient)
         .then((channels) => {
@@ -114,4 +174,5 @@ router.get('/subscriptions', youtubeAuth, nextTick, (req:YouTubeAuthRequest, res
         });
 });
 
+/* ---- ROUTER EXPORT (END OF FILE) ---- */
 export const YouTubeRouter: Router = router;
