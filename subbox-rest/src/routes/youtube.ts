@@ -5,6 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import * as google from "googleapis";
 import { AxiosResponse } from "axios";
 import { Schema$SubscriptionListResponse } from "googleapis/build/src/apis/youtube/v3";
+import { YouTubeChannelDTO } from "../dtos/youtube";
 
 const router:Router = Router();
 
@@ -60,6 +61,29 @@ const youtubeAuth = (req:YouTubeAuthRequest, res:Response, next:NextFunction) =>
 
 router.get('/', emptyResponse(false));
 
+//function fetchSubscriptionPage(oauthClient:OAuth2Client, nextPageToken:string = null) {
+//    google.google.youtube({
+//        version: 'v3',
+//        auth: oauthClient
+//    }).subscriptions.list({
+//        part: 'snippet',
+//        mine: true,
+//        maxResults: 50,
+//        order: 'alphabetical',
+//        fields: 'etag,eventId,items(snippet(resourceId(channelId,playlistId,videoId),thumbnails,title)),nextPageToken,pageInfo,prevPageToken'
+//    }, (err:Error|null, data:AxiosResponse<Schema$SubscriptionListResponse>) => {
+//        if (err) {
+//            console.log(err.constructor.name, err.name, err.message);
+//            return restError(err, 'ERR_REMOTE_API')(req, res);
+//        }
+//        if (data && data.data) {
+//            return dataResponse(data.data)(req, res);
+//        } else {
+//            return restError(null, 'ERR_EMPTY_RESPONSE')(req, res);
+//        }
+//    });
+//}
+
 router.get('/subscriptions', youtubeAuth, nextTick, (req:YouTubeAuthRequest, res:Response) => {
     google.google.youtube({
         version: 'v3',
@@ -76,7 +100,9 @@ router.get('/subscriptions', youtubeAuth, nextTick, (req:YouTubeAuthRequest, res
             return restError(err, 'ERR_REMOTE_API')(req, res);
         }
         if (data && data.data) {
-            return dataResponse(data.data)(req, res);
+            return dataResponse(
+                data.data.items.map(s => YouTubeChannelDTO.convertFromSubscription(s))
+            )(req, res);
         } else {
             return restError(null, 'ERR_EMPTY_RESPONSE')(req, res);
         }
