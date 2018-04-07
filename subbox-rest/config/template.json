@@ -2,7 +2,8 @@
     "youtube": {
         "credentials": {
             "clientID": "",
-            "clientSecret": ""
+            "clientSecret": "",
+            "apiKey": ""
         },
         "scope": ["https://www.googleapis.com/auth/youtube.readonly"],
         "accessType": "offline"

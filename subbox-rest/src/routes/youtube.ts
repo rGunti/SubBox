@@ -1,12 +1,17 @@
 import { Router, Request, Response, RouterOptions, NextFunction } from "express";
-import { authError, emptyResponse, restError, dataResponse, nextTick } from "./utils";
+import { authError, emptyResponse, restError, dataResponse, dataCollectionResponse, nextTick } from "./utils";
 import * as config from "config";
 import { OAuth2Client } from 'google-auth-library';
 import * as google from "googleapis";
 import { AxiosResponse } from "axios";
-import { Schema$SubscriptionListResponse } from "googleapis/build/src/apis/youtube/v3";
-import { YouTubeChannelDTO, YouTubeChannelListSection } from "../dtos/youtube";
-import { DataCollectionResponseDTO } from "../dtos/base";
+import { Schema$SubscriptionListResponse, Schema$ChannelListResponse } from "googleapis/build/src/apis/youtube/v3";
+import { YouTubeChannelDTO, YouTubeChannelListSection, YouTubeVideoDTO, ObjectListSection } from "../dtos/youtube";
+import { DataCollectionResponseDTO, DataResponseDTO } from "../dtos/base";
+
+/* ---- CONSTANTS ---- */
+const YOUTUBE_API_KEY:string = config.get('youtube.credentials.apiKey');
+const YOUTUBE_OAUTH_CLIENT_ID:string = config.get('youtube.credentials.clientID');
+const YOUTUBE_OAUTH_CLIENT_SECRET:string = config.get('youtube.credentials.clientSecret');
 
 /* ---- CLASSES & INTERFACES ---- */
 
@@ -28,10 +33,7 @@ class YouTubeCredentials {
         this.AccessToken = accessToken;
         this.RefreshToken = refreshToken;
 
-        const client = new OAuth2Client(
-            config.get('youtube.credentials.clientID'),
-            config.get('youtube.credentials.clientSecret')
-        );
+        const client = getNewOAuthClient();
         client.credentials = {
             access_token: this.AccessToken,
             refresh_token: this.RefreshToken
@@ -46,6 +48,13 @@ interface YouTubeAuthRequest extends Request {
 }
 
 /* ---- PROCESSING FUNCTIONS ---- */
+
+/**
+ * Returns a new OAuth2Client with the right credentials
+ */
+const getNewOAuthClient = () => {
+    return new OAuth2Client(YOUTUBE_OAUTH_CLIENT_ID, YOUTUBE_OAUTH_CLIENT_SECRET);
+};
 
 /**
  * Checks if authentication is present.
@@ -128,6 +137,65 @@ function fetchAllSubscriptions(oauthClient:OAuth2Client):Promise<YouTubeChannelD
     });
 }
 
+/**
+ * Retrieves YouTube Channel info about a given channel 
+ * @param channelID YouTube Channel ID
+ */
+function fetchChannel(channelID:string):Promise<YouTubeChannelDTO> {
+    return new Promise<YouTubeChannelDTO>((resolve, reject) => {
+        process.nextTick(() => {
+            google.google.youtube({
+                version: 'v3'
+            }).channels.list({
+                key: YOUTUBE_API_KEY,
+                part: 'snippet,contentDetails',
+                id: channelID,
+                fields: 'items(contentDetails/relatedPlaylists/uploads,id,snippet(customUrl,thumbnails,title))'
+            }, (err:Error|any, data:AxiosResponse<Schema$ChannelListResponse>) => {
+                if (!err && data.data && data.data.items.length >= 1) {
+                    resolve(
+                        YouTubeChannelDTO.convertFromChannelList(data.data.items[0])
+                    );
+                } else {
+                    reject(err);
+                }
+            });
+        });
+    });
+}
+
+/**
+ * Retrieves a list of (max. 50) videos in a given playlist by ID
+ * @param playlistID YouTube Playlist ID
+ */
+function fetchPlaylistItems(playlistID:string, nextPageToken:string = null):Promise<ObjectListSection<YouTubeVideoDTO>> {
+    return new Promise<ObjectListSection<YouTubeVideoDTO>>((resolve, reject) => {
+        process.nextTick(() => {
+            google.google.youtube({
+                version: 'v3'
+            }).playlistItems.list({
+                key: YOUTUBE_API_KEY,
+                part: 'snippet',
+                playlistId: playlistID,
+                maxResults: 50,
+                pageToken: nextPageToken,
+                fields: 'items(snippet(publishedAt,resourceId/videoId,thumbnails,title)),nextPageToken,prevPageToken'
+            }, (err:Error|any, data) => {
+                if (!err && data.data && data.data.items) {
+                    resolve(
+                        new ObjectListSection<YouTubeVideoDTO>(
+                            data.data.items.map(v => YouTubeVideoDTO.convertFromPlaylistItem(v)),
+                            data.data.nextPageToken
+                        )
+                    )
+                } else {
+                    reject(err);
+                }
+            });
+        });
+    });
+}
+
 /* ---- ROUTER ---- */
 
 const router:Router = Router();
@@ -165,8 +233,76 @@ router.get('/', emptyResponse(false));
 router.get('/subscriptions', youtubeAuth, nextTick, (req:YouTubeAuthRequest, res:Response) => {
     fetchAllSubscriptions(req.youtubeCredentials.OAuthClient)
         .then((channels) => {
-            return dataResponse(
+            return dataCollectionResponse(
                 new DataCollectionResponseDTO<YouTubeChannelDTO>(channels)
+            )(req, res);
+        })
+        .catch((err) => {
+            return restError(err)(req, res);
+        });
+});
+
+/**
+ * GET _/channel/{channelID}/videos
+ * Retrieves uploaded videos from a given youtube channel
+ * 
+ * Parameters (Path):
+ *  - channelID:    ID of YouTube channel
+ * 
+ * Returns:
+ *  if successful:
+ *      {
+ *          okay: true                  => true
+ *          data: YouTubeVideo[]        => List of (max. 50) YouTube videos
+ *          itemCount: number           => Number of items present in "data"
+ *      }
+ *  if failed:
+ *      {
+ *          okay: false                 => false
+ *          error: string               => Error Reason Code ("ERR_UNSPECIFIED")
+ *          detail: Error|any           => Error object that was thrown
+ *      }
+ */
+router.get('/channel/:channelID/videos', async (req:Request, res:Response) => {
+    try {
+        const channel = await fetchChannel(req.params.channelID);
+        if (!channel) {
+            return restError(null, 'ERR_YT_CHANNEL_MISSING', 404)(req, res);
+        }
+        const videos = await fetchPlaylistItems(channel.uploadPlaylistID);
+        return dataCollectionResponse(
+            new DataCollectionResponseDTO(videos.items)
+        )(req, res);
+    } catch (err) {
+        restError(err)(req, res);
+    }
+});
+
+/**
+ * GET _/channel/{channelID}/info
+ * Retrieves channel info from a given youtube channel
+ * 
+ * Parameters (Path):
+ *  - channelID:    ID of YouTube channel
+ * 
+ * Returns:
+ *  if successful:
+ *      {
+ *          okay: true                  => true
+ *          data: YouTubeChannelDTO     => YouTube Channel Info
+ *      }
+ *  if failed:
+ *      {
+ *          okay: false                 => false
+ *          error: string               => Error Reason Code ("ERR_UNSPECIFIED")
+ *          detail: Error|any           => Error object that was thrown
+ *      }
+ */
+router.get('/channel/:channelID/info', (req:Request, res:Response) => {
+    fetchChannel(req.params.channelID)
+        .then((channel) => {
+            return dataResponse(
+                new DataResponseDTO<YouTubeChannelDTO>(channel)
             )(req, res);
         })
         .catch((err) => {

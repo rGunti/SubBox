@@ -1,4 +1,4 @@
-import { Schema$ThumbnailDetails, Schema$Subscription } from "googleapis/build/src/apis/youtube/v3";
+import { Schema$ThumbnailDetails, Schema$Subscription, Schema$Channel, Schema$PlaylistItem } from "googleapis/build/src/apis/youtube/v3";
 
 /**
  * Represents an image displayed on YouTube
@@ -34,6 +34,7 @@ export class YouTubeChannelDTO {
     public id:string;
     public name:string;
     public channelIcon?:ThumbnailDTO;
+    public uploadPlaylistID?:string;
 
     /**
      * Gets a new YouTube Channel DTO from a Subscription item
@@ -46,6 +47,38 @@ export class YouTubeChannelDTO {
         c.name = s.snippet.title;
         c.channelIcon = ThumbnailDTO.convertFromYouTube(s.snippet.thumbnails);
         return c;
+    }
+
+    /**
+     * Gets a new YouTube Channel DTO from a Channel item
+     * retrieved from the YouTube Data API
+     * @param s Channel info
+     */
+    public static convertFromChannelList(s:Schema$Channel):YouTubeChannelDTO {
+        const c = new YouTubeChannelDTO();
+        c.id = s.id;
+        c.name = s.snippet.title;
+        c.channelIcon = ThumbnailDTO.convertFromYouTube(s.snippet.thumbnails);
+        c.uploadPlaylistID = s.contentDetails.relatedPlaylists.uploads;
+        return c;
+    }
+}
+
+export class YouTubeVideoDTO {
+    public id:string;
+    public title:string;
+    public description:string;
+    public uploadedAt:string;
+    public thumbnails?:ThumbnailDTO;
+
+    public static convertFromPlaylistItem(s:Schema$PlaylistItem):YouTubeVideoDTO {
+        const v = new YouTubeVideoDTO();
+        v.id = s.snippet.resourceId.videoId;
+        v.title = s.snippet.title;
+        v.description = s.snippet.description || null;
+        v.uploadedAt = s.snippet.publishedAt;
+        v.thumbnails = ThumbnailDTO.convertFromYouTube(s.snippet.thumbnails);
+        return v;
     }
 }
 
