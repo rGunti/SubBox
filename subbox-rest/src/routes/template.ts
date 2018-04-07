@@ -1,6 +1,9 @@
 import { Router, Request, Response, RouterOptions } from "express";
 import { emptyResponse } from "./utils";
 
+/* ---- CONSTANTS / CONFIG VALUES ---- */
+// TODO
+
 /* ---- CLASSES & INTERFACES ---- */
 // TODO
 

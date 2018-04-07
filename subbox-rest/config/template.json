@@ -10,5 +10,8 @@
     },
     "server": {
         "port": 3010
+    },
+    "logic": {
+        "maxSubscriptions": 1000
     }
 }

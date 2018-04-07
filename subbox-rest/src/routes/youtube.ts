@@ -8,10 +8,12 @@ import { Schema$SubscriptionListResponse, Schema$ChannelListResponse } from "goo
 import { YouTubeChannelDTO, YouTubeChannelListSection, YouTubeVideoDTO, ObjectListSection } from "../dtos/youtube";
 import { DataCollectionResponseDTO, DataResponseDTO } from "../dtos/base";
 
-/* ---- CONSTANTS ---- */
+/* ---- CONSTANTS / CONFIG VALUES ---- */
 const YOUTUBE_API_KEY:string = config.get('youtube.credentials.apiKey');
 const YOUTUBE_OAUTH_CLIENT_ID:string = config.get('youtube.credentials.clientID');
 const YOUTUBE_OAUTH_CLIENT_SECRET:string = config.get('youtube.credentials.clientSecret');
+
+const MAX_SUBSCRIPTIONS:number = config.get('logic.maxSubscriptions');
 
 /* ---- CLASSES & INTERFACES ---- */
 
@@ -119,6 +121,9 @@ function fetchSubscriptionPage(oauthClient:OAuth2Client, nextPageToken:string = 
 
 /**
  * Fetches a list of all YouTube channels a user has subscribed to
+ * Note: The maximum number of items that can be fetched through this method is a
+ * configurable value. If the user exceeds the number of subscriptions that is configured
+ * this method will only deliver the first XXX channels a user has subscribed to.
  * @param oauthClient OAuth Client with User credentials
  */
 function fetchAllSubscriptions(oauthClient:OAuth2Client):Promise<YouTubeChannelDTO[]> {
@@ -126,10 +131,12 @@ function fetchAllSubscriptions(oauthClient:OAuth2Client):Promise<YouTubeChannelD
         const result:YouTubeChannelDTO[] = [];
         let lastResponse:YouTubeChannelListSection = new YouTubeChannelListSection(null);
         try {
+            let remainingInterations = Math.ceil(MAX_SUBSCRIPTIONS / 50);
             do {
+                remainingInterations--;
                 lastResponse = await fetchSubscriptionPage(oauthClient, lastResponse.nextPageToken);
                 lastResponse.items.forEach(c => result.push(c));
-            } while (lastResponse.nextPageToken);
+            } while (lastResponse.nextPageToken && remainingInterations > 0);
         } catch (err) {
             reject(err);
         }
