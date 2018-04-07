@@ -7,6 +7,7 @@ import { AxiosResponse } from "axios";
 import { Schema$SubscriptionListResponse, Schema$ChannelListResponse } from "googleapis/build/src/apis/youtube/v3";
 import { YouTubeChannelDTO, YouTubeChannelListSection, YouTubeVideoDTO, ObjectListSection } from "../dtos/youtube";
 import { DataCollectionResponseDTO, DataResponseDTO } from "../dtos/base";
+import * as async from "async";
 
 /* ---- CONSTANTS / CONFIG VALUES ---- */
 const YOUTUBE_API_KEY:string = config.get('youtube.credentials.apiKey');
@@ -243,6 +244,50 @@ router.get('/subscriptions', youtubeAuth, nextTick, async (req:YouTubeAuthReques
         return dataCollectionResponse(
             new DataCollectionResponseDTO<YouTubeChannelDTO>(channels)
         )(req, res);
+    } catch (err) {
+        return restError(err)(req, res);
+    }
+});
+
+/**
+ * GET _/subscriptions/feed
+ * ...
+ * 
+ * Parameters (Query):
+ *  -> {youtubeAuth}
+ */
+router.get('/subscriptions/feed', youtubeAuth, nextTick, async (req:YouTubeAuthRequest, res:Response) => {
+    try {
+        const subscribedChannels = await fetchAllSubscriptions(req.youtubeCredentials.OAuthClient);
+        let videos:YouTubeVideoDTO[] = [];
+        async.eachOfLimit(subscribedChannels, 5, 
+            async (channel:YouTubeChannelDTO, index:number, callback:(err?:Error|any) => void) => {
+                try {
+                    const channelDetail = await fetchChannel(channel.id);
+                    const channelUploads = await fetchPlaylistItems(channelDetail.uploadPlaylistID);
+                    channelUploads.items.forEach(v => {
+                        v.uploadedBy = channelDetail;
+                        videos.push(v);
+                    });
+                    callback();
+                } catch (err) {
+                    callback(err);
+                }
+            },
+            (err:Error|null|any) => {
+                if (err) return restError(err, 'ERR_FETCHING')(req, res);
+                
+                // Sort Data
+                videos = videos.sort((a, b) => {
+                    if (a.uploadedAt < b.uploadedAt) return 1;
+                    else if (a.uploadedAt > b.uploadedAt) return -1;
+                    return 0;
+                }).splice(0, 100);
+
+                // Send Data
+                return dataCollectionResponse(new DataCollectionResponseDTO(videos))(req, res);
+            }
+        );
     } catch (err) {
         return restError(err)(req, res);
     }

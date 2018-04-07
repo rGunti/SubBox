@@ -69,6 +69,7 @@ export class YouTubeVideoDTO {
     public title:string;
     public description:string;
     public uploadedAt:string;
+    public uploadedBy:YouTubeChannelDTO;
     public thumbnails?:ThumbnailDTO;
 
     public static convertFromPlaylistItem(s:Schema$PlaylistItem):YouTubeVideoDTO {
