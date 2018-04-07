@@ -237,16 +237,46 @@ router.get('/', emptyResponse(false));
  *          detail: Error|any           => Error object that was thrown
  *      }
  */
-router.get('/subscriptions', youtubeAuth, nextTick, (req:YouTubeAuthRequest, res:Response) => {
-    fetchAllSubscriptions(req.youtubeCredentials.OAuthClient)
-        .then((channels) => {
-            return dataCollectionResponse(
-                new DataCollectionResponseDTO<YouTubeChannelDTO>(channels)
-            )(req, res);
-        })
-        .catch((err) => {
-            return restError(err)(req, res);
-        });
+router.get('/subscriptions', youtubeAuth, nextTick, async (req:YouTubeAuthRequest, res:Response) => {
+    try {
+        const channels = await fetchAllSubscriptions(req.youtubeCredentials.OAuthClient);
+        return dataCollectionResponse(
+            new DataCollectionResponseDTO<YouTubeChannelDTO>(channels)
+        )(req, res);
+    } catch (err) {
+        return restError(err)(req, res);
+    }
+});
+
+/**
+ * GET _/channel/{channelID}/info
+ * Retrieves channel info from a given youtube channel
+ * 
+ * Parameters (Path):
+ *  - channelID:    ID of YouTube channel
+ * 
+ * Returns:
+ *  if successful:
+ *      {
+ *          okay: true                  => true
+ *          data: YouTubeChannelDTO     => YouTube Channel Info
+ *      }
+ *  if failed:
+ *      {
+ *          okay: false                 => false
+ *          error: string               => Error Reason Code ("ERR_UNSPECIFIED")
+ *          detail: Error|any           => Error object that was thrown
+ *      }
+ */
+router.get('/channel/:channelID/info', async (req:Request, res:Response) => {
+    try {
+        const channel = await fetchChannel(req.params.channelID);
+        return dataResponse(
+            new DataResponseDTO<YouTubeChannelDTO>(channel)
+        )(req, res);
+    } catch (err) {
+        return restError(err)(req, res);
+    }
 });
 
 /**
@@ -283,38 +313,6 @@ router.get('/channel/:channelID/videos', async (req:Request, res:Response) => {
     } catch (err) {
         restError(err)(req, res);
     }
-});
-
-/**
- * GET _/channel/{channelID}/info
- * Retrieves channel info from a given youtube channel
- * 
- * Parameters (Path):
- *  - channelID:    ID of YouTube channel
- * 
- * Returns:
- *  if successful:
- *      {
- *          okay: true                  => true
- *          data: YouTubeChannelDTO     => YouTube Channel Info
- *      }
- *  if failed:
- *      {
- *          okay: false                 => false
- *          error: string               => Error Reason Code ("ERR_UNSPECIFIED")
- *          detail: Error|any           => Error object that was thrown
- *      }
- */
-router.get('/channel/:channelID/info', (req:Request, res:Response) => {
-    fetchChannel(req.params.channelID)
-        .then((channel) => {
-            return dataResponse(
-                new DataResponseDTO<YouTubeChannelDTO>(channel)
-            )(req, res);
-        })
-        .catch((err) => {
-            return restError(err)(req, res);
-        });
 });
 
 /* ---- ROUTER EXPORT (END OF FILE) ---- */
